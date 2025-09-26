@@ -1,6 +1,7 @@
 <script>
 import AppH1 from '../components/AppH1.vue';
-import { supabase } from '../services/supabase';
+import { fetchLastGlobalChatMessages, sendNewGlobalChatMessage, subscribeToNewGlobalChatMessages } from '../services/global-chat';
+
 
 export default {
     name: 'PublicChat',
@@ -18,43 +19,26 @@ export default {
     },
     methods: {
         async handleSubmit(){
-            const {data, error} = await supabase
-            .from('global_chat_messages')
-            .insert({
+            await sendNewGlobalChatMessage({
                 email: this.newMessage.email,
-                content: this.newMessage.content,
+                content: this.newMessage.content
             });
             
             this.newMessage.content = "";
         }
     },
+
     async mounted(){
         //traer mensajes de SupaBase
         //para interacciones con SupaBase vamos a usar el cliente exportado de [services/supabase.js]
 
+        this.messages = await fetchLastGlobalChatMessages();
 
-        const { data, error} = await supabase
-        .from('global_chat_messages')
-        .select('*')
-        .order('created_at');
-
-        if(error){
-            throw new Error(error);
-        }
-        this.messages = data;
-
-        const chatChannel = supabase.channel('global_chat');
-        chatChannel.on('postgres_changes',
-        {
-            event: 'INSERT',
-            table: 'global_chat_messages',
-            schema: 'public', 
-        },
-        (payload) => {
-            this.messages.push(payload.new);
+        subscribeToNewGlobalChatMessages(async newMessage => {
+            this.messages.push(newMessage)
+            await this.$nextTick();
+            this.$refs.chatContainer.scrollTop = this.$refs.chatContainer.scrollHeight;
         });
-
-        chatChannel.subscribe();
 
         //console.log("El elemento contenedor del chat es: ", this.$refs.chatContainer);
         await this.$nextTick();
