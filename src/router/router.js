@@ -5,6 +5,7 @@ import Login from '../pages/Login.vue';
 import Register from '../pages/Register.vue';
 import Profile from '../pages/Profile.vue';
 import Settings from '../pages/Settings.vue';
+import Feed from '../pages/Feed.vue';
 
 // Definimos la lista de rutas de nuestra aplicación.
 // Esto es, un array de objetos de "ruta".
@@ -48,7 +49,7 @@ const routes = [
     },
     { 
         path: '/feed', 
-        component: Home, // Por ahora redirige a Home, después crearemos el Feed
+        component: Feed, 
         name: 'Feed',
         meta: { 
             requiresAuth: true 

@@ -145,8 +145,43 @@
                 <!-- Contenido de las pestañas -->
                 <div class="p-6">
                     <!-- Pestaña de Publicaciones -->
-                    <div v-if="activeTab === 'posts'" class="space-y-4">
-                        <div class="text-center py-12 text-gray-500">
+                    <div v-if="activeTab === 'posts'">
+                        <!-- Loading de posts -->
+                        <div v-if="postsLoading" class="flex justify-center py-12">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+                        </div>
+                        
+                        <!-- Error cargando posts -->
+                        <div v-else-if="postsError" class="text-center py-12">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Error al cargar publicaciones</h3>
+                            <p class="text-gray-500 mb-4">{{ postsError }}</p>
+                            <button
+                                @click="loadUserPosts"
+                                class="text-indigo-600 hover:text-indigo-700 font-medium"
+                            >
+                                Reintentar
+                            </button>
+                        </div>
+                        
+                        <!-- Lista de posts -->
+                        <div v-else-if="posts.length > 0" class="space-y-4">
+                            <PostCard
+                                v-for="post in posts"
+                                :key="post.id"
+                                :post="post"
+                                @edit="handleEditPost"
+                                @delete="handleDeletePost"
+                                @like="handleLikePost"
+                                @comment="handleCommentPost"
+                                @share="handleSharePost"
+                            />
+                        </div>
+                        
+                        <!-- Sin publicaciones -->
+                        <div v-else class="text-center py-12 text-gray-500">
                             <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
@@ -154,6 +189,13 @@
                             <p class="text-gray-500">
                                 {{ isOwnProfile ? 'Aún no has creado ninguna publicación.' : 'Este usuario no ha creado publicaciones.' }}
                             </p>
+                            <RouterLink
+                                v-if="isOwnProfile"
+                                to="/feed"
+                                class="inline-block mt-4 text-indigo-600 hover:text-indigo-700 font-medium"
+                            >
+                                Crear mi primera publicación →
+                            </RouterLink>
                         </div>
                     </div>
 
@@ -198,12 +240,15 @@ import { useRoute } from 'vue-router';
 import { useAuth } from '../composables/useAuth.js';
 import { useExternalProfile } from '../composables/useProfile.js';
 import { getProfileByIdentifier, createSlugFromDisplayName } from '../services/profiles.js';
+import { getPostsByUser } from '../services/posts.js';
 import RankBadge from '../components/RankBadge.vue';
+import PostCard from '../components/PostCard.vue';
 
 export default {
     name: 'Profile',
     components: {
-        RankBadge
+        RankBadge,
+        PostCard
     },
     setup() {
         const route = useRoute();
@@ -224,6 +269,9 @@ export default {
             error: null,
             activeTab: 'posts',
             followLoading: false,
+            posts: [],
+            postsLoading: false,
+            postsError: null,
             stats: {
                 postsCount: 0,
                 followersCount: 0,
@@ -395,12 +443,86 @@ export default {
          * Carga las estadísticas del perfil
          */
         async loadStats() {
-            // Por ahora stats estáticas, más adelante se cargarán de la BD
+            // Cargar posts del usuario para contar
+            await this.loadUserPosts();
+            
             this.stats = {
-                postsCount: 0,
+                postsCount: this.posts.length,
                 followersCount: 0,
                 followingCount: 0
             };
+        },
+        
+        /**
+         * Carga los posts del usuario
+         */
+        async loadUserPosts() {
+            if (!this.profile?.id) return;
+            
+            this.postsLoading = true;
+            this.postsError = null;
+            
+            try {
+                const { posts, error } = await getPostsByUser(this.profile.id);
+                
+                if (error) {
+                    this.postsError = error.message || 'Error al cargar publicaciones';
+                    return;
+                }
+                
+                this.posts = posts || [];
+            } catch (error) {
+                console.error('Error loading user posts:', error);
+                this.postsError = 'Error inesperado al cargar publicaciones';
+            } finally {
+                this.postsLoading = false;
+            }
+        },
+        
+        /**
+         * Maneja la eliminación de un post
+         */
+        async handleDeletePost(postId) {
+            // Importar dinámicamente para no cargar siempre
+            const { deletePost } = await import('../services/posts.js');
+            
+            try {
+                const { success, error } = await deletePost(postId);
+                
+                if (error) {
+                    alert('Error al eliminar la publicación');
+                    return;
+                }
+                
+                if (success) {
+                    // Remover del array local
+                    this.posts = this.posts.filter(p => p.id !== postId);
+                    // Actualizar stats
+                    this.stats.postsCount = this.posts.length;
+                }
+            } catch (error) {
+                console.error('Error deleting post:', error);
+                alert('Error inesperado al eliminar la publicación');
+            }
+        },
+        
+        /**
+         * Placeholders para acciones de posts
+         */
+        handleEditPost(post) {
+            console.log('Edit post:', post);
+        },
+        
+        handleLikePost(postId) {
+            console.log('Like post:', postId);
+        },
+        
+        handleCommentPost(postId) {
+            console.log('Comment post:', postId);
+        },
+        
+        handleSharePost(post) {
+            console.log('Share post:', post);
         },
         
         /**
