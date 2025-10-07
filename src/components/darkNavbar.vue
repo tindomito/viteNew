@@ -23,8 +23,8 @@
         <div class="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
           <div class="flex shrink-0 items-center">
             <RouterLink to="/" class="flex items-center">
-              <img src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=500" alt="Logo" class="h-8 w-auto" />
-              <span class="ml-2 text-white font-bold text-lg">MMA Social</span>
+              <span class="filter drop-shadow-md">🥊</span>
+              <span class="ml-2 text-white font-bold text-lg">Verdict MMA</span>
             </RouterLink>
           </div>
           <div class="hidden sm:ml-6 sm:flex space-x-4">
